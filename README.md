@@ -1,5 +1,5 @@
 # HTTP/Websocket server and client
-A small HTTP server and client with websockets, intended for services in a local network, based on [ReactPHP](https://reactphp.org/).
+A small HTTP server and client with websockets, intended for services in a local network, based on [ReactPHP](https://reactphp.org/) and a fork of [ratchet/rfc6455](https://github.com/ratchetphp/RFC6455).
 
 > ## :warning: Do NOT expose this to the Wild Wild Web!!!
 > ### It is NOT and probably never will be secure enough.
