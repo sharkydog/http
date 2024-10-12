@@ -123,10 +123,11 @@ $httpd->route('/', 403);
  *** ServerRequest, extends Request, extends Message
  *
  * methods:
- *  setBufferBody(bool $p) - default: true
- *   body is buffered and can by retrieved by Message->getBody()
+ *  setBufferBody(bool $p) - default: false
+ *   if set to true, body is buffered and can be retrieved by Message->getBody()
  *   if set to false, request body will be received by a Handler
  *   in Handler->onData(), possibly in chunks
+ *   set to true for single parameter callbacks
  *  abort() - close connection
  *
  * properties:

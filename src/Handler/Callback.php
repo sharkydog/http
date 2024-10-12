@@ -25,7 +25,10 @@ class Callback extends HTTP\Handler {
   }
 
   public function onHeaders(HTTP\ServerRequest $request) {
-    if(!$this->_onHeaders) return null;
+    if(!$this->_onHeaders) {
+      $request->setBufferBody(true);
+      return null;
+    }
     return ($this->_callback)($request, true);
   }
 

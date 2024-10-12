@@ -8,7 +8,7 @@ class ServerRequest extends Request {
   private $server;
   private $localHost;
   private $routePath;
-  private $bufferBody = true;
+  private $bufferBody = false;
 
   public $GET = [];
   public $POST = [];
