@@ -1,0 +1,27 @@
+{
+  "name": "sharkydog/http",
+  "description": "HTTP/Websocket server and client",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Aleksandar Dimitrov",
+      "email": "admin@sharkydog.info"
+    }
+  ],
+  "require": {
+    "php": ">=7.4",
+    "sharkydog/private-emitter": "^1.0",
+    "sharkydog/ratchet-rfc6455": "^1.0",
+    "react/event-loop": "^1.5",
+    "react/socket": "^1.16",
+    "react/stream": "^1.4"
+  },
+  "suggest": {
+    "sharkydog/logger": "Display messages other than errors and warnings"
+  },
+  "autoload": {
+    "psr-4": {
+      "SharkyDog\\HTTP\\": "src/"
+    }
+  }
+}
