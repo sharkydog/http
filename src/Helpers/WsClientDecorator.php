@@ -3,7 +3,7 @@ namespace SharkyDog\HTTP\Helpers;
 use SharkyDog\HTTP\WebSocket as WS;
 use SharkyDog\PrivateEmitter\PrivateEmitterTrait;
 
-class WsClientDecorator {
+abstract class WsClientDecorator {
   use PrivateEmitterTrait;
 
   protected $ws;
