@@ -59,7 +59,7 @@ class MyHandler extends HTTP\Handler {
   // called when a chunk from the request body is received
   //   if request body was not set to a stream
   //    and
-  //   if ServerRequest->setBufferBody() was not set to true (default)
+  //   if ServerRequest->setBufferBody() was not set to true (defaults to false)
   //
   // will also be called on upgraded connections
   // without a request body stream
