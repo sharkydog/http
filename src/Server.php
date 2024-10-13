@@ -293,7 +293,7 @@ class Server {
         if($ctType == 'application/x-www-form-urlencoded') {
           @parse_str($bufferBody, $request->POST);
         } else {
-        $request->setBody($bufferBody);
+          $request->setBody($bufferBody);
         }
         $bufferBody = '';
       };
