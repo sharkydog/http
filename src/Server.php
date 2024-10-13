@@ -5,7 +5,7 @@ use React\Socket\SecureServer;
 use React\Stream;
 
 class Server {
-  private $_serverStr = 'ShD HTTP Server v1.0';
+  private $_serverStr = 'ShD HTTP Server v1.0.2';
   private $_maxHandlerRedirects = 5;
   private $_keepAliveTimeout = 10;
   private $_routes = [];
@@ -285,20 +285,17 @@ class Server {
       });
       $conn->reqBody = $reqBody;
       Log::destruct($reqBody, 'HTTP: Server: Request body destroyed', 'http','server');
-    } else if($ctLen && $ctType == 'application/x-www-form-urlencoded') {
-      $buffer = '';
-      $datacb = function($data, $ctLen) use($conn, &$buffer) {
-        $buffer .= $data;
-        if($ctLen) return;
-        @parse_str($buffer, $conn->request->POST);
-        $buffer = '';
-      };
     } else if($ctLen && $request->bufferBody) {
       $bufferBody = '';
-      $datacb = function($data,$ctLen) use($request,&$bufferBody) {
+      $datacb = function($data,$ctLen) use($request,$ctType,&$bufferBody) {
         $bufferBody .= $data;
         if($ctLen) return;
+        if($ctType == 'application/x-www-form-urlencoded') {
+          @parse_str($bufferBody, $request->POST);
+        } else {
         $request->setBody($bufferBody);
+        }
+        $bufferBody = '';
       };
     } else if($ctLen || $upgrade) {
       $datacb = function($data) use($conn) {

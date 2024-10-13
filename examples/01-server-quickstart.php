@@ -112,10 +112,46 @@ $httpd->route('/file', new HTTP\Handler\File('./www/hello.html', false));
 // third parameter is to allow ranged requests
 $httpd->route('/dir', new HTTP\Handler\Dir('./www', 'index.html', false));
 
+
+/* About request body (POST, PUT, etc)
+ *
+ * Currently there is no limit on the size of the body
+ * or the time the server will wait to receive all of it.
+ *
+ * For that reason, implicit buffering of the body is turned off.
+ * !!! Except for single parameter callback handlers/routes !!!
+ *
+ * With this buffering off,
+ * parsing application/x-www-form-urlencoded will also be off.
+ * Request body can be received only in Handler->onData() in chunks.
+ * Body can also be received in a stream (React\Stream).
+ *
+ * To enable body buffering,
+ * you need to call ServerRequest->setBufferBody(true) in Handler->onHeaders().
+ * For two parameter callbacks, when second parameter is true.
+ *
+ * Request body stream is also set in Handler->onHeaders().
+ */
+
+// Implicit body buffering
+$httpd->route('/post1', function($request) {
+  return $request->getBody() ?: print_r($request->POST,true);
+});
+
+// Explicit body buffering
+$httpd->route('/post2', function($request,$onHeaders) {
+  if($onHeaders) {
+    $request->setBufferBody(true);
+    return null;
+  }
+  return $request->getBody() ?: print_r($request->POST,true);
+});
+
+
 // default route
 // if omitted and no route is matched
 // server will return 404 response
-$httpd->route('/', 403);
+//$httpd->route('/', 403);
 
 
 /* A word (or more) about some important classes
@@ -137,6 +173,8 @@ $httpd->route('/', 403);
  *  attr - stdClass for per request user storage
  *  GET - parsed query
  *  POST - parsed body if content type is application/x-www-form-urlencoded
+ *    setBufferBody(true) needs to be called in onHeaders()
+ *    it is on implicitly for single parameter callbacks
  * properties from ServerConnection:
  *  ID - int, unique id of the connection
  *  closed, closing, TLS - bool, connection is closed, closing, is over https
