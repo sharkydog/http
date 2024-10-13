@@ -12,6 +12,8 @@ Documentation is not yet written, there is a lot to write and will land in the [
 Until then, there is a [quick start example](examples/01-server-quickstart.php) for the server.
 Similar examples will follow for websockets, clients and other features.
 
+Examples should be looked in the `main` branch, tagged releases may not have them up to date - [main/examples](https://github.com/sharkydog/http/tree/main/examples).
+
 And there is always the option to go for a treasure hunt through the source.
 And I will be happy to answer questions and provide assistance.
 
