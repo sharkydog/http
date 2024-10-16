@@ -10,7 +10,8 @@ A small HTTP server and client with websockets, intended for services in a local
 Documentation is not yet written, there is a lot to write and will land in the [Wiki](https://github.com/sharkydog/http/wiki) eventually.
 
 Until then, there is a [quick start example](https://github.com/sharkydog/http/blob/main/examples/01-server-quickstart.php) for the server.
-* new (13.10.24): [server-handlers](https://github.com/sharkydog/http/blob/main/examples/02-server-handlers.php)
+* new (13.10.24): [server-handlers and promise](https://github.com/sharkydog/http/blob/main/examples/02-server-handlers.php)
+* new (16.10.24): [streams](https://github.com/sharkydog/http/blob/main/examples/03-server-streams.php)
 
 Similar examples will follow for websockets, clients and other features.
 
