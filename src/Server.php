@@ -274,6 +274,10 @@ class Server {
     $reqBody = $request->getBody();
 
     if($reqBody instanceOf Stream\WritableStreamInterface) {
+      if(!$reqBody->isWritable()) {
+        $this->_onError($conn, 'Request stream not writable');
+        return;
+      }
       $datacb = function($data,$ctLen=null) use($conn,$reqBody) {
         $reqBody->write($data);
         if($ctLen !== 0) return;
