@@ -405,6 +405,7 @@ class Server {
 
         if($status != 101 && strpos($trEnc,'chunked') === false) {
           if(!(int)$response->getHeader('Content-Length')) {
+            $resBody->close();
             $this->_onError($conn, 'Stream response must have Content-Length or Transfer-Encoding: chunked');
             return;
           }
@@ -529,6 +530,11 @@ class Server {
 
         $resBody->close();
       });
+      $resBody->on('close', function() use($conn, &$ctLen) {
+        if(!$ctLen) return;
+        $conn->resBody = null;
+        $this->_onError($conn, 'Response body closed before sending all data');
+      });
     } else {
       $resBody->on('data', function($data) use($conn, $resBody) {
         if(!$conn->conn || $conn->conn->closing) {
@@ -544,6 +550,7 @@ class Server {
     }
 
     $resBody->on('close', function() use($conn, $close) {
+      if(!$conn->resBody) return;
       $conn->resBody = null;
       $this->_resEnd($conn, $close);
     });
