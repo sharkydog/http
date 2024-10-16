@@ -50,6 +50,9 @@ class ChunkedStream extends EventEmitter implements Stream\DuplexStreamInterface
   }
 
   public function write($data) {
+    if(!is_string($data)) {
+      $data = '';
+    }
     if(!strlen($data)) {
       return !$this->closed && !$this->paused;
     } else {
@@ -106,6 +109,9 @@ class ChunkedStream extends EventEmitter implements Stream\DuplexStreamInterface
   }
 
   public function end($data=null) {
+    if(!is_string($data)) {
+      $data = '';
+    }
     if(strlen($data)) {
       $this->write_($data);
     }

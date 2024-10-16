@@ -197,8 +197,13 @@ class FormDataParser extends EventEmitter implements Stream\WritableStreamInterf
 
   public function write($data) {
     if(!$this->writable) return false;
+
+    if(!is_string($data)) {
+      $data = '';
+    }
     $this->emit('data-in', [$data]);
     $this->buffer->feed($data);
+
     return true; // or $this->writable?
   }
 

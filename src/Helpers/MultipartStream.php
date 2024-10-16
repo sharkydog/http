@@ -109,6 +109,9 @@ class MultipartStream extends EventEmitter implements Stream\DuplexStreamInterfa
     if($this->closed) {
       return false;
     }
+    if(!is_string($data)) {
+      $data = '';
+    }
 
     $bndrlen = strlen($this->boundary) + 2;
     $this->checkBuffer .= $data;
@@ -215,6 +218,9 @@ class MultipartStream extends EventEmitter implements Stream\DuplexStreamInterfa
   }
 
   public function end($data=null) {
+    if(!is_string($data)) {
+      $data = '';
+    }
     if(strlen($data)) {
       $this->write($data);
     }
