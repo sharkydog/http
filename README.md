@@ -12,6 +12,7 @@ Documentation is not yet written, there is a lot to write and will land in the [
 Until then, there is a [quick start example](https://github.com/sharkydog/http/blob/main/examples/01-server-quickstart.php) for the server.
 * new (13.10.24): [server-handlers and promise](https://github.com/sharkydog/http/blob/main/examples/02-server-handlers.php)
 * new (16.10.24): [streams](https://github.com/sharkydog/http/blob/main/examples/03-server-streams.php)
+* new (17.10.24): [filters](https://github.com/sharkydog/http/blob/main/examples/04-server-filters.php)
 
 Similar examples will follow for websockets, clients and other features.
 
