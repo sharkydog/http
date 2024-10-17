@@ -156,14 +156,8 @@ class Server {
   }
 
   private function _onData($conn, $data) {
-    if(!$conn->request) {
-      if(!$this->_filter($conn, true, 'onConnData', $conn->conn, $data)) {
+    if(!$this->_filter($conn, true, 'onConnData', $conn->conn, $data)) {
         return;
-      }
-    } else {
-      if(!$this->_filter($conn, false, 'onReqData', $conn->conn, $conn->request, $data)) {
-        return;
-      }
     }
     $conn->buffer->feed($data);
   }
@@ -330,6 +324,10 @@ class Server {
 
     if($datacb) {
       $conn->buffer->on('data', function($data) use($datacb, $conn) {
+        if(!$this->_filter($conn, true, 'onReqData', $conn->conn, $conn->request, $data)) {
+          if($conn->buffer) $conn->buffer->removeAllListeners('data');
+          return;
+        }
         $datacb($data);
       });
     }
