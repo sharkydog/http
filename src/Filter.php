@@ -26,11 +26,11 @@ abstract class Filter {
   public function onResPromise(ServerConnection $conn, ?ServerRequest $request, Promise $promise): ?Response {
     return null;
   }
-  public function onResponse(ServerConnection $conn, ?ServerRequest $request, Response $response, $body): void {
+  public function onResponse(ServerConnection $conn, ?ServerRequest $request, Response $response, $body, bool $ftRes=false): void {
   }
-  public function afterResHeaders(ServerConnection $conn, ?ServerRequest $request, Response $response, $body): void {
+  public function afterResHeaders(ServerConnection $conn, ?ServerRequest $request, Response $response, $body, bool $ftRes=false): void {
   }
-  public function onResEnd(ServerConnection $conn, ?ServerRequest $request, Response $response, bool $close): void {
+  public function onResEnd(ServerConnection $conn, ?ServerRequest $request, Response $response, bool $close, bool $ftRes=false): void {
   }
   public function onConnClose(ServerConnection $conn, ?ServerRequest $request, ?Response $response): void {
   }

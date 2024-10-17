@@ -99,6 +99,7 @@ class Server {
       }
       if($response) {
         Log::debug('HTTP: Filter: '.get_class($filter).'::'.$method.'(): response', 'http','filter');
+        $conn->filterResponse = true;
         $this->_response($conn, $response, $close);
         return false;
       }
@@ -119,6 +120,7 @@ class Server {
     $conn->reqBodyEnding = false;
     $conn->resBody = null;
     $conn->responsePromise = null;
+    $conn->filterResponse = false;
 
     if(Log::loggerLoaded()) {
       $c = $conn->conn;
@@ -475,11 +477,15 @@ class Server {
       $response->addHeader('Content-Length', strlen($resBody));
     }
 
-    if(!$this->_filter($conn, false, 'onResponse', $conn->conn, $conn->request, $response, $resBody)) {
+    if(!$this->_filter(
+      $conn, false, 'onResponse',
+      $conn->conn, $conn->request, $response,
+      $resBody, $conn->filterResponse
+    )) {
       return;
     }
 
-    if($conn->handler) {
+    if($conn->handler && !$conn->filterResponse) {
       $conn->handler->onResponse($conn->request, $response);
 
       if(!$conn->conn || $conn->conn->closing) {
@@ -489,14 +495,18 @@ class Server {
 
     $conn->write($response->render(false));
 
-    if(!$this->_filter($conn, false, 'afterResHeaders', $conn->conn, $conn->request, $response, $resBody)) {
+    if(!$this->_filter(
+      $conn, false, 'afterResHeaders',
+      $conn->conn, $conn->request, $response,
+      $resBody, $conn->filterResponse
+    )) {
       return;
     }
 
     $ctLen = !$upgrade ? (int)$response->getHeader('Content-Length') : 0;
 
     if(!$resBody || is_string($resBody)) {
-      if($conn->handler) {
+      if($conn->handler && !$conn->filterResponse) {
         $conn->handler->onResponseHeaders($conn->request, $response);
 
         if(!$conn->conn || $conn->conn->closing) {
@@ -586,7 +596,11 @@ class Server {
   }
 
   private function _resEnd($conn, $close) {
-    if(!$this->_filter($conn, false, 'onResEnd', $conn->conn, $conn->request, $conn->response, $close||!$conn->buffer)) {
+    if(!$this->_filter(
+      $conn, false, 'onResEnd',
+      $conn->conn, $conn->request, $conn->response,
+      $close||!$conn->buffer, $conn->filterResponse
+    )) {
       return;
     }
 
@@ -620,6 +634,7 @@ class Server {
 
     $conn->request = null;
     $conn->response = null;
+    $conn->filterResponse = false;
 
     $conn->timer->cancel();
     $conn->timer = new Timer($this->_keepAliveTimeout, function() use($conn) {
