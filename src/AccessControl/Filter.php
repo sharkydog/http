@@ -26,7 +26,7 @@ class Filter extends HTTP\Filter {
     return $rule;
   }
 
-  public function deny(?HTTP\Response $response, string ...$args): Rule {
+  public function deny($response=null, string ...$args): Rule {
     $rule = $this->rule()->deny($response);
     foreach($args as $arg) $this->_addStrArg($rule, $arg);
     return $rule;
