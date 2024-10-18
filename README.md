@@ -13,6 +13,7 @@ Until then, there is a [quick start example](https://github.com/sharkydog/http/b
 * new (13.10.24): [server-handlers and promise](https://github.com/sharkydog/http/blob/main/examples/02-server-handlers.php)
 * new (16.10.24): [streams](https://github.com/sharkydog/http/blob/main/examples/03-server-streams.php)
 * new (17.10.24): [filters](https://github.com/sharkydog/http/blob/main/examples/04-server-filters.php)
+* new (18.10.24): [access control](https://github.com/sharkydog/http/blob/main/examples/05-server-access-control.php)
 
 Similar examples will follow for websockets, clients and other features.
 
