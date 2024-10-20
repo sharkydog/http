@@ -264,7 +264,7 @@ class Server {
     }
 
     if($ctLen) {
-      $ctType = strtolower($request->getHeader('Content-Type'));
+      $ctType = strtolower($request->getHeader('Content-Type')?:'');
     }
 
     $reqBody = $request->getBody();
