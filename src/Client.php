@@ -108,6 +108,14 @@ final class Client {
     }
   }
 
+  public function pending(): int {
+    return count($this->_requests);
+  }
+
+  public function active(): bool {
+    return !!$conn->request;
+  }
+
   public function request(Request $request): ClientRequest {
     $clientRequest = new ClientRequest($request, $emitter);
 

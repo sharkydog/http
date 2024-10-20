@@ -17,7 +17,11 @@ class ClientRequest {
     Log::destruct(static::class);
   }
 
-  public function getRequest() {
+  public function abort() {
+    $this->_emit('abort');
+  }
+
+  public function getRequest(): Request {
     return $this->_request;
   }
 
