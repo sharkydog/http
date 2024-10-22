@@ -216,7 +216,7 @@ final class Client {
     $opCode = $frame->getOpCode();
 
     if($opCode == WsM\Frame::OP_CLOSE) {
-      $this->end($frame,true);
+      $this->end(true);
       return;
     }
     if($opCode == WsM\Frame::OP_PING) {
@@ -255,10 +255,12 @@ final class Client {
     }
 
     try {
-      if(!($data instanceOf WsM\DataInterface)) {
+      if($data instanceOf WsM\Frame) {
+        $this->_buffer->sendFrame($data);
+      } else if(is_string($data)) {
         $this->_buffer->sendMessage($data);
       } else {
-        $this->_buffer->sendFrame($data);
+        return;
       }
     } catch(\Exception $e) {
       Log::error('WS Client: '.$e->getMessage());
@@ -266,17 +268,16 @@ final class Client {
     }
   }
 
-  public function end($code = WsM\Frame::CLOSE_NORMAL, bool $reconnect=false) {
+  public function end(bool $reconnect=false, ?int $code = WsM\Frame::CLOSE_NORMAL) {
     if(!$this->_connected) {
       return;
     }
 
-    if(!($code instanceOf WsM\DataInterface)) {
-      if(!is_int($code)) $code = WsM\Frame::CLOSE_NORMAL;
-      $code = $this->_buffer->newCloseFrame($code);
+    if($code !== null) {
+      $code = max(WsM\Frame::CLOSE_NORMAL, $code);
+      $code = min(WsM\Frame::CLOSE_TLS, $code);
+      $this->send($this->_buffer->newCloseFrame($code));
     }
-
-    $this->send($code);
 
     if($this->_timer) {
       $this->_timer->cancel();

@@ -25,11 +25,14 @@ class Connection {
     if(!($ws=$this->request->attr->ws) || !$ws->stream) {
       return;
     }
+
     try {
-      if(!($data instanceOf WsM\DataInterface)) {
+      if($data instanceOf WsM\Frame) {
+        $ws->buffer->sendFrame($data);
+      } else if(is_string($data)) {
         $ws->buffer->sendMessage($data);
       } else {
-        $ws->buffer->sendFrame($data);
+        return;
       }
     } catch(\Exception $e) {
       Log::error('WS Connection: '.$e->getMessage());
@@ -38,15 +41,17 @@ class Connection {
     }
   }
 
-  public function end($code = WsM\Frame::CLOSE_NORMAL) {
+  public function end(?int $code = WsM\Frame::CLOSE_NORMAL) {
     if(!($ws=$this->request->attr->ws) || !$ws->stream) {
       return;
     }
-    if(!($code instanceOf WsM\DataInterface)) {
-      if(!is_int($code)) $code = WsM\Frame::CLOSE_NORMAL;
-      $code = $ws->buffer->newCloseFrame($code);
+
+    if($code !== null) {
+      $code = max(WsM\Frame::CLOSE_NORMAL, $code);
+      $code = min(WsM\Frame::CLOSE_TLS, $code);
+      $this->send($ws->buffer->newCloseFrame($code));
     }
-    $this->send($code);
+
     $ws->stream->end();
     $ws->stream = null;
   }
