@@ -123,6 +123,7 @@ final class Client {
 
   private function _onHeaders($response, $request) {
     if($response->getStatus() != 101) {
+      $this->_closing = true;
       $this->_emit('error-response', [$response, $request]);
       return;
     } else {
