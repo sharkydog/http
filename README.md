@@ -15,6 +15,7 @@ Until then, there is a [quick start example](https://github.com/sharkydog/http/b
 * new (17.10.24): [filters](https://github.com/sharkydog/http/blob/main/examples/04-server-filters.php)
 * new (18.10.24): [access control](https://github.com/sharkydog/http/blob/main/examples/05-server-access-control.php)
 * new (20.10.24): [client](https://github.com/sharkydog/http/blob/main/examples/06-client.php)
+* new (22.10.24): websocket [server](https://github.com/sharkydog/http/blob/main/examples/07-websocket-server.php), [client](https://github.com/sharkydog/http/blob/main/examples/08-websocket-client.php)
 
 Similar examples will follow for websockets, clients and other features.
 
