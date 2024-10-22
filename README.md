@@ -17,8 +17,6 @@ Until then, there is a [quick start example](https://github.com/sharkydog/http/b
 * new (20.10.24): [client](https://github.com/sharkydog/http/blob/main/examples/06-client.php)
 * new (22.10.24): websocket [server](https://github.com/sharkydog/http/blob/main/examples/07-websocket-server.php), [client](https://github.com/sharkydog/http/blob/main/examples/08-websocket-client.php)
 
-Similar examples will follow for websockets, clients and other features.
-
 Examples should be looked in the `main` branch, tagged releases may not have them up to date - [main/examples](https://github.com/sharkydog/http/tree/main/examples).
 
 And there is always the option to go for a treasure hunt through the source.
