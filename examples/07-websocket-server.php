@@ -50,10 +50,11 @@ $httpd->route('/ws/echo', new WsEcho);
 //
 // Connection methods:
 //  Send a message to the client
+//  Can be a string or Ratchet\RFC6455\Messaging\Frame
 //   public function send($data)
 //
 //  Close connection after sending all data
-//   public function end()
+//   public function end(?int $code = Frame::CLOSE_NORMAL)
 //
 //  Close connection immediately,
 //  use this when you don't care if the last message is delivered
@@ -81,6 +82,10 @@ $httpd->route('/ws/echo', new WsEcho);
 // Whenever there is a tutorial about sockets,
 // examples usually have an echo app or a chat.
 // So, a chat handler.
+//
+// Clients
+// 08-websocket-client.php example
+// html/js: https://gist.github.com/sharkydog/b63934dd990b0c80013764bbd19a14df
 //
 class WsChat extends WebSocket\Handler {
   //  peers (connections) are tracked only when they set a nickname
