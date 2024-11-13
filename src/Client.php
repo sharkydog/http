@@ -3,6 +3,7 @@ namespace SharkyDog\HTTP;
 use SharkyDog\PrivateEmitter\PrivateEmitterTrait;
 use React\Socket\Connector;
 use React\Stream;
+use React\Dns\Resolver\ResolverInterface;
 
 final class Client {
   use PrivateEmitterTrait;
@@ -12,6 +13,7 @@ final class Client {
   private $_host;
   private $_port;
   private $_path;
+  private $_resolver = true;
   private $_headers = [];
   private $_timeout = 5;
 
@@ -75,6 +77,13 @@ final class Client {
   public function timeout(?int $p=null): int {
     if($p) $this->_timeout = max(1,$p);
     return $this->_timeout;
+  }
+
+  public function resolver($resolver) {
+    if(!is_bool($resolver) && !($resolver instanceOf ResolverInterface)) {
+      return;
+    }
+    $this->_resolver = $resolver;
   }
 
   public function pause() {
@@ -152,7 +161,8 @@ final class Client {
       'unix' => false,
       'happy_eyeballs' => false,
       'timeout' => $this->timeout(),
-      'tls' => $this->tls()
+      'tls' => $this->tls(),
+      'dns' => $this->_resolver
     ];
 
     $url  = $this->tls() ? 'tls://' : 'tcp://';

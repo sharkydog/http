@@ -43,6 +43,10 @@ final class Client {
     Log::destruct(static::class);
   }
 
+  public function resolver($resolver) {
+    $this->_client->resolver($resolver);
+  }
+
   public function reconnect(int $interval) {
     $this->_reconnInterval = max(0,$interval);
   }
