@@ -6,10 +6,12 @@ use Ratchet\RFC6455\Messaging as WsM;
 
 class Connection {
   use HTTP\DataTrait;
+  private $_request;
   private $request;
 
   public function __construct(HTTP\ServerRequest $request) {
-    $this->request = $request;
+    $this->_request = $request;
+    $this->request = new Request($request);
   }
 
   public function __destruct() {
@@ -18,11 +20,12 @@ class Connection {
 
   public function __get($prop) {
     if($prop == 'attr') return $this->_data();
-    return $this->request->$prop ?? null;
+    if($prop[0] == '_') return null;
+    return $this->$prop ?? $this->_request->$prop ?? null;
   }
 
   public function send($data) {
-    if(!($ws=$this->request->attr->ws) || !$ws->stream) {
+    if(!($ws=$this->_request->attr->ws) || !$ws->stream) {
       return;
     }
 
@@ -42,7 +45,7 @@ class Connection {
   }
 
   public function end(?int $code = WsM\Frame::CLOSE_NORMAL) {
-    if(!($ws=$this->request->attr->ws) || !$ws->stream) {
+    if(!($ws=$this->_request->attr->ws) || !$ws->stream) {
       return;
     }
 
@@ -57,7 +60,7 @@ class Connection {
   }
 
   public function close() {
-    if(!($ws=$this->request->attr->ws) || !$ws->stream) {
+    if(!($ws=$this->_request->attr->ws) || !$ws->stream) {
       return;
     }
     $ws->stream->close();
