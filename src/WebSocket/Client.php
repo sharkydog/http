@@ -123,12 +123,14 @@ final class Client {
     $rq->on('response-headers', function($response, $request) {
       $this->_onHeaders($response, $request);
     });
+    $rq->on('response', function($response, $request) {
+      $this->_onResponse($response, $request);
+    });
   }
 
   private function _onHeaders($response, $request) {
     if($response->getStatus() != 101) {
       $this->_closing = true;
-      $this->_emit('error-response', [$response, $request]);
       return;
     } else {
       $this->_emit('response', [$response, $request]);
@@ -168,16 +170,14 @@ final class Client {
 
     $rq = $this->_clientRequest;
 
-    $rq->on('response', function($response) {
-      $this->_onResponse($response);
-    });
     $rq->on('response-data', function($data) {
       $this->_buffer->onData($data);
     });
   }
 
-  private function _onResponse($response) {
+  private function _onResponse($response, $request) {
     if($response->getStatus() != 101) {
+      $this->_emit('error-response', [$response, $request]);
       return;
     }
     $this->_connected = true;
