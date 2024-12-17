@@ -243,6 +243,10 @@ class Server {
       $conn->handler = $r;
     }
 
+    if(!$conn->conn || $conn->conn->closing) {
+      return;
+    }
+
     if(!$this->_filter($conn, $ctLen>0, 'afterReqHeaders', $conn->conn, $request, $response)) {
       return;
     }
