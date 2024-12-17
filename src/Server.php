@@ -456,6 +456,10 @@ class Server {
       }
     }
 
+    if(!$upgrade && !$this->_keepAliveTimeout) {
+      $close = true;
+    }
+
     $conn->response = $response;
 
     if($conn->responsePromise) {
