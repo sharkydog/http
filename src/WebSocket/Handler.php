@@ -75,9 +75,11 @@ abstract class Handler extends HTTP\Handler {
       $ws->buffer = new WsM\MessageBuffer(
         new WsM\CloseFrameChecker,
         function($msg) use($ws) {
+          if(!$ws->conn) return;
           $this->wsMsg($ws->conn, $msg->getPayload());
         },
         function($frame) use($ws) {
+          if(!$ws->conn) return;
           $this->_onControlFrame($ws, $frame);
         },
         true, null, null, null,

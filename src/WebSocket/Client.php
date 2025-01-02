@@ -141,9 +141,11 @@ final class Client {
       $this->_buffer = new WsM\MessageBuffer(
         new WsM\CloseFrameChecker,
         function($msg) {
+          if(!$this->_connected) return;
           $this->_emit('message', [$msg->getPayload()]);
         },
         function($frame) {
+          if(!$this->_connected) return;
           $this->_onControlFrame($frame);
         },
         false, null, null, null,
