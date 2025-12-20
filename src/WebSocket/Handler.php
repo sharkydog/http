@@ -148,7 +148,7 @@ abstract class Handler extends HTTP\Handler {
     $opCode = $frame->getOpCode();
 
     if($opCode == WsM\Frame::OP_CLOSE) {
-      $ws->conn->end();
+      $ws->conn->close();
       return;
     }
     if($opCode == WsM\Frame::OP_PING) {

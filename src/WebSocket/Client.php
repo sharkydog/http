@@ -223,7 +223,7 @@ final class Client {
     $opCode = $frame->getOpCode();
 
     if($opCode == WsM\Frame::OP_CLOSE) {
-      $this->end(true);
+      $this->close(true);
       return;
     }
     if($opCode == WsM\Frame::OP_PING) {
