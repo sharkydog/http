@@ -218,6 +218,10 @@ final class Client {
       if(!$this->_conn->reqid) return;
       $this->_conn->buffer->feed($data);
     });
+    $conn->on('drain', function() {
+      if($this->_conn->reqBody) $this->_conn->reqBody->resume();
+      ($this->_conn->emitter)('drain');
+    });
 
     $conn->buffer->on('headers', function($headers) {
       $this->_onHeaders($headers);
@@ -316,7 +320,7 @@ final class Client {
       $request->addHeader('Content-Length', strlen($reqBody));
     }
 
-    $conn->write($request->render(false));
+    $wr = $conn->write($request->render(false));
     ($conn->emitter)('request-headers', [$request]);
 
     if(!$this->_conn || !$reqBody) {
@@ -340,8 +344,8 @@ final class Client {
     $conn->reqBody = $reqBody;
     Log::destruct($reqBody, 'HTTP: Client: Request body destroyed', 'http','client');
 
-    $datacb = function($data) use($conn) {
-      $conn->write($data);
+    $datacb = function($data) use($conn, $reqBody) {
+      if(!$conn->write($data)) $reqBody->pause();
     };
 
     if($ctLen) {
@@ -365,7 +369,12 @@ final class Client {
     }
 
     $reqBody->on('data', $datacb);
-    $reqBody->resume();
+
+    if($wr) {
+      $reqBody->resume();
+    } else {
+      $reqBody->pause();
+    }
   }
 
   private function _onHeaders($headers) {
@@ -414,8 +423,8 @@ final class Client {
       $reqBody = $conn->request->getBody();
 
       if($reqBody instanceOf Stream\ReadableStreamInterface) {
-        $reqBody->on('data', function($data) {
-          $this->_conn->write($data);
+        $reqBody->on('data', function($data) use($reqBody) {
+          if(!$this->_conn->write($data)) $reqBody->pause();
         });
 
         $reqBody->on('close', function() {
@@ -446,8 +455,8 @@ final class Client {
         $this->_onResponse($response);
       };
     } else if($resBody instanceOf Stream\WritableStreamInterface) {
-      $datacb = function($data, $end=false) use($resBody) {
-        if($data) $resBody->write($data);
+      $datacb = function($data, $end=false) use($conn,$resBody) {
+        if($data && !$resBody->write($data)) $conn->pause();
         if($end) $resBody->end();
       };
       $resBody->on('close', function() use($response) {
@@ -455,6 +464,9 @@ final class Client {
         $this->_conn->resBody = null;
         if($this->_conn->upgrade) return;
         $this->_onResponse($response);
+      });
+      $resBody->on('drain', function() use($conn) {
+        $conn->resume();
       });
       $conn->resBody = $resBody;
       Log::destruct($resBody, 'HTTP: Client: Response body destroyed', 'http','client');

@@ -69,7 +69,9 @@ abstract class Handler extends HTTP\Handler {
     $ws->stream = null;
     $ws->timer = null;
     $ws->ping = null;
+    $ws->pong = null;
     $ws->conn = null;
+    $ws->wr = true;
 
     try {
       $ws->buffer = new WsM\MessageBuffer(
@@ -85,7 +87,7 @@ abstract class Handler extends HTTP\Handler {
         true, null, null, null,
         function($data) use($ws) {
           if(!$ws->stream) return;
-          $ws->stream->write($data);
+          $ws->wr = $ws->stream->write($data);
         },
         null
       );
@@ -99,6 +101,20 @@ abstract class Handler extends HTTP\Handler {
     $key = $key.'258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
     $ws->stream = new Stream\ThroughStream;
     $ws->conn = new Connection($request);
+
+    $ws->stream->on('drain', function() use($ws) {
+      $ws->wr = true;
+
+      if($ws->pong) {
+        Log::debug('WS Handler: Ping: write buffer drained, sending pong', 'ws','ping');
+        $ws->conn->send($ws->pong);
+        $ws->pong = null;
+      }
+
+      if($ws->wr) {
+        $this->wsDrain($ws->conn);
+      }
+    });
 
     if($this->_pingInterval) {
       $ws->timer = new HTTP\Interval($this->_pingInterval, function() use($ws) {
@@ -139,6 +155,7 @@ abstract class Handler extends HTTP\Handler {
     $ws->buffer = null;
     $ws->stream = null;
     $ws->ping = null;
+    $ws->pong = null;
 
     $this->wsClose($ws->conn);
     $ws->conn = null;
@@ -151,12 +168,21 @@ abstract class Handler extends HTTP\Handler {
       $ws->conn->close();
       return;
     }
+
     if($opCode == WsM\Frame::OP_PING) {
       $pong = new WsM\Frame($frame->getPayload(), true, WsM\Frame::OP_PONG);
-      $ws->conn->send($pong);
       $ws->ping = time();
+
+      if($ws->wr) {
+        $ws->conn->send($pong);
+      } else {
+        Log::debug('WS Handler: Ping: write buffer full, will send pong on drain', 'ws','ping');
+        $ws->pong = $pong;
+      }
+
       return;
     }
+
     if($opCode == WsM\Frame::OP_PONG) {
       if(is_string($ws->ping) && $ws->ping==$frame->getPayload()) {
         $ws->ping = time();
@@ -175,6 +201,10 @@ abstract class Handler extends HTTP\Handler {
     if(!$this->_pingForced && is_int($ws->ping) && ($ws->ping+$this->_pingInterval)>time()) {
       return;
     }
+    if(!$ws->wr) {
+      Log::debug('WS Handler: Ping: write buffer full, not sending ping', 'ws','ping');
+      return;
+    }
 
     $ws->ping = uniqid('ping_');
     $ping = new WsM\Frame($ws->ping, true, WsM\Frame::OP_PING);
@@ -184,6 +214,8 @@ abstract class Handler extends HTTP\Handler {
   protected function wsOpen(Connection $conn) {
   }
   protected function wsMsg(Connection $conn, string $msg) {
+  }
+  protected function wsDrain(Connection $conn) {
   }
   protected function wsClose(Connection $conn) {
   }

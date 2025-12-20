@@ -5,7 +5,7 @@ use React\Socket\SecureServer;
 use React\Stream;
 
 class Server {
-  private $_serverStr = 'ShD HTTP Server v1.1';
+  private $_serverStr = 'ShD HTTP Server v1.3.4';
   private $_maxHandlerRedirects = 5;
   private $_keepAliveTimeout = 10;
   private $_routes = [];
@@ -148,6 +148,9 @@ class Server {
     $conn->on('error', function($e) use($conn) {
       $this->_onError($conn, $e);
     });
+    $conn->on('drain', function() use($conn) {
+      if($conn->resBody) $conn->resBody->resume();
+    });
 
     $conn->buffer->on('headers', function($headers) use($conn) {
       $this->_onHeaders($conn, $headers);
@@ -278,9 +281,12 @@ class Server {
         $this->_onError($conn, 'Request stream not writable');
         return;
       }
-      $datacb = function($data) use($reqBody) {
-        $reqBody->write($data);
+      $datacb = function($data) use($conn,$reqBody) {
+        if(!$reqBody->write($data)) $conn->pause();
       };
+      $reqBody->on('drain', function() use($conn) {
+        $conn->resume();
+      });
       $conn->reqBody = $reqBody;
       Log::destruct($reqBody, 'HTTP: Server: Request body destroyed', 'http','server');
     } else if($ctLen && $request->bufferBody) {
@@ -500,7 +506,7 @@ class Server {
       }
     }
 
-    $conn->write($response->render(false));
+    $wr = $conn->write($response->render(false));
 
     if(!$this->_filter(
       $conn, false, 'afterResHeaders',
@@ -536,6 +542,10 @@ class Server {
       return;
     }
 
+    if(!$wr) {
+      $resBody->pause();
+    }
+
     $conn->resBody = $resBody;
     Log::destruct($resBody, 'HTTP: Server: Response body destroyed', 'http','server');
 
@@ -544,7 +554,7 @@ class Server {
         if($conn->conn->closing) return;
         $data = substr($data, 0, $ctLen);
         $ctLen -= strlen($data);
-        $conn->write($data);
+        if(!$conn->write($data)) $resBody->pause();
         if(!$ctLen) $resBody->close();
       });
       $resBody->on('close', function() use($conn, &$ctLen) {
@@ -555,9 +565,9 @@ class Server {
       if($upgrade) {
         $close = true;
       }
-      $resBody->on('data', function($data) use($conn) {
+      $resBody->on('data', function($data) use($conn, $resBody) {
         if($conn->conn->closing) return;
-        $conn->write($data);
+        if(!$conn->write($data)) $resBody->pause();
       });
     }
 

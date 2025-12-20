@@ -28,7 +28,8 @@ abstract class WsClientDecorator {
       $this->_emitter(),
       'open','close','stop','reconnect',
       'error-connect','error-response',
-      'request','response','message'
+      'request','response','message',
+      'write-blocked','drain'
     );
 
     $this->ws->connect($timeout);

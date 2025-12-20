@@ -24,23 +24,26 @@ class Connection {
     return $this->$prop ?? $this->_request->$prop ?? null;
   }
 
-  public function send($data) {
+  public function send($data): ?bool {
     if(!($ws=$this->_request->attr->ws) || !$ws->stream) {
-      return;
+      return null;
     }
 
     try {
       if($data instanceOf WsM\Frame) {
         $ws->buffer->sendFrame($data);
+        return $ws->wr;
       } else if(is_string($data)) {
         $ws->buffer->sendMessage($data);
+        return $ws->wr;
       } else {
-        return;
+        return null;
       }
     } catch(\Exception $e) {
       Log::error('WS Connection: '.$e->getMessage());
       $ws->stream->close();
       $ws->stream = null;
+      return null;
     }
   }
 
@@ -49,7 +52,7 @@ class Connection {
       return;
     }
 
-    if($code !== null) {
+    if($code !== null && $ws->wr) {
       $code = max(WsM\Frame::CLOSE_NORMAL, $code);
       $code = min(WsM\Frame::CLOSE_TLS, $code);
       $this->send($ws->buffer->newCloseFrame($code));

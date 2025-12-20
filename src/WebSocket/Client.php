@@ -22,7 +22,9 @@ final class Client {
   private $_buffer;
   private $_stream;
   private $_ping;
+  private $_pong;
   private $_timer;
+  private $_wr = true;
 
   public function __construct(string $url, array $headers=[]) {
     $headers = array_replace($headers, [
@@ -150,7 +152,10 @@ final class Client {
         },
         false, null, null, null,
         function($data) {
-          $this->_stream->write($data);
+          if(!$this->_stream->write($data) && $this->_wr) {
+            $this->_wr = false;
+            $this->_emit('write-blocked');
+          }
         },
         null
       );
@@ -161,8 +166,23 @@ final class Client {
       return;
     }
 
+    $this->_wr = true;
     $this->_stream = new Stream\ThroughStream;
     $request->setBody($this->_stream);
+
+    $this->_stream->on('drain', function() {
+      $this->_wr = true;
+
+      if($this->_pong) {
+        Log::debug('WS Client: Ping: write buffer drained, sending pong', 'ws','ping');
+        $this->send($this->_pong);
+        $this->_pong = null;
+      }
+
+      if($this->_wr) {
+        $this->_emit('drain');
+      }
+    });
 
     if($this->_pingInterval) {
       $this->_timer = new HTTP\Interval($this->_pingInterval, function() {
@@ -207,6 +227,8 @@ final class Client {
     $this->_buffer = null;
     $this->_stream = null;
     $this->_ping = null;
+    $this->_pong = null;
+    $this->_wr = false;
 
     $this->_connected = false;
     $this->_emit('close', [!$this->_closing]);
@@ -226,12 +248,21 @@ final class Client {
       $this->close(true);
       return;
     }
+
     if($opCode == WsM\Frame::OP_PING) {
       $pong = new WsM\Frame($frame->getPayload(), true, WsM\Frame::OP_PONG);
-      $this->send($pong);
       $this->_ping = time();
+
+      if($this->_wr) {
+        $this->send($pong);
+      } else {
+        Log::debug('WS Client: Ping: write buffer full, will send pong on drain', 'ws','ping');
+        $this->_pong = $pong;
+      }
+
       return;
     }
+
     if($opCode == WsM\Frame::OP_PONG) {
       if(is_string($this->_ping) && $this->_ping==$frame->getPayload()) {
         $this->_ping = time();
@@ -250,29 +281,40 @@ final class Client {
     if(!$this->_pingForced && is_int($this->_ping) && ($this->_ping+$this->_pingInterval)>time()) {
       return;
     }
+    if(!$this->_wr) {
+      Log::debug('WS Client: Ping: write buffer full, not sending ping', 'ws','ping');
+      return;
+    }
 
     $this->_ping = uniqid('ping_');
     $ping = new WsM\Frame($this->_ping, true, WsM\Frame::OP_PING);
     $this->send($ping);
   }
 
-  public function send($data) {
+  public function send($data): ?bool {
     if(!$this->_connected) {
-      return;
+      return null;
     }
 
     try {
       if($data instanceOf WsM\Frame) {
         $this->_buffer->sendFrame($data);
+        return $this->_wr;
       } else if(is_string($data)) {
         $this->_buffer->sendMessage($data);
+        return $this->_wr;
       } else {
-        return;
+        return null;
       }
     } catch(\Exception $e) {
       Log::error('WS Client: '.$e->getMessage());
       $this->close(false);
+      return null;
     }
+  }
+
+  public function writeBlocked(): bool {
+    return !$this->_wr;
   }
 
   public function end(bool $reconnect=false, ?int $code = WsM\Frame::CLOSE_NORMAL) {
@@ -280,7 +322,7 @@ final class Client {
       return;
     }
 
-    if($code !== null) {
+    if($code !== null && $this->_wr) {
       $code = max(WsM\Frame::CLOSE_NORMAL, $code);
       $code = min(WsM\Frame::CLOSE_TLS, $code);
       $this->send($this->_buffer->newCloseFrame($code));
