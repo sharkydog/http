@@ -89,11 +89,12 @@ class Server {
 
   private function _filter($conn, $close, $method, ...$args) {
     if(empty($this->_filters[$method])) return true;
+    $closing = !$conn->conn || $conn->conn->closing;
 
     foreach($this->_filters[$method] as $filter) {
       $response = $filter->$method(...$args);
 
-      if((!$conn->conn || $conn->conn->closing) && $method != 'onConnClose') {
+      if(!$closing && (!$conn->conn || $conn->conn->closing) && $method != 'onConnClose') {
         Log::debug('HTTP: Filter: '.get_class($filter).'::'.$method.'(): closing connection', 'http','filter');
         return false;
       }
@@ -117,7 +118,6 @@ class Server {
     $conn->request = null;
     $conn->response = null;
     $conn->reqBody = null;
-    $conn->reqBodyEnding = false;
     $conn->resBody = null;
     $conn->responsePromise = null;
     $conn->filterResponse = false;
@@ -278,15 +278,9 @@ class Server {
         $this->_onError($conn, 'Request stream not writable');
         return;
       }
-      $datacb = function($data,$ctLen=null) use($conn,$reqBody) {
+      $datacb = function($data) use($reqBody) {
         $reqBody->write($data);
-        if($ctLen !== 0) return;
-        $conn->reqBodyEnding = true;
-        $reqBody->end();
       };
-      $reqBody->on('close', function() use($conn) {
-        $conn->reqBody = null;
-      });
       $conn->reqBody = $reqBody;
       Log::destruct($reqBody, 'HTTP: Server: Request body destroyed', 'http','server');
     } else if($ctLen && $request->bufferBody) {
@@ -318,14 +312,19 @@ class Server {
         if($ctLen) return;
 
         if($conn->reqBody) {
-          $conn->reqBody->on('close', function() use($conn) {
-            if(!$conn->reqBodyEnding) return;
-            $this->_request($conn);
-          });
+          $conn->reqBody->end();
         } else {
           $this->_request($conn);
         }
       };
+
+      if($conn->reqBody) {
+        $conn->reqBody->on('close', function() use($conn) {
+          if(!$conn->reqBody) return;
+          $conn->reqBody = null;
+          $this->_request($conn);
+        });
+      }
     }
 
     if($datacb) {
@@ -522,8 +521,15 @@ class Server {
         }
       }
 
-      if($resBody && $ctLen) {
-        $conn->write(substr($resBody,0,$ctLen));
+      if($ctLen) {
+        $resBody = substr($resBody, 0, $ctLen);
+
+        if(strlen($resBody) < $ctLen) {
+          $conn->conn->close();
+          return;
+        }
+
+        $conn->write($resBody);
       }
 
       $this->_resEnd($conn, $close);
@@ -535,38 +541,24 @@ class Server {
 
     if($ctLen) {
       $resBody->on('data', function($data) use($conn, $resBody, &$ctLen) {
-        if(!$ctLen || !$conn->conn || $conn->conn->closing) {
-          $resBody->close();
-          return;
-        }
-
+        if($conn->conn->closing) return;
         $data = substr($data, 0, $ctLen);
         $ctLen -= strlen($data);
         $conn->write($data);
-
-        if($ctLen) {
-          return;
-        }
-
-        $resBody->close();
+        if(!$ctLen) $resBody->close();
       });
       $resBody->on('close', function() use($conn, &$ctLen) {
-        if(!$ctLen) return;
-        $conn->resBody = null;
-        $this->_onError($conn, 'Response body closed before sending all data');
+        if(!$conn->resBody) return;
+        if($ctLen) $conn->conn->close();
       });
     } else {
-      $resBody->on('data', function($data) use($conn, $resBody) {
-        if(!$conn->conn || $conn->conn->closing) {
-          $resBody->close();
-          return;
-        }
+      if($upgrade) {
+        $close = true;
+      }
+      $resBody->on('data', function($data) use($conn) {
+        if($conn->conn->closing) return;
         $conn->write($data);
       });
-    }
-
-    if($upgrade) {
-      $close = true;
     }
 
     $resBody->on('close', function() use($conn, $close) {
@@ -603,45 +595,64 @@ class Server {
     }
   }
 
-  private function _resEnd($conn, $close) {
+  private function _resEnd($conn, $close, $closed=false) {
+    $request = $conn->request;
+    $response = $conn->response;
+
+    $conn->request = null;
+    $conn->response = null;
+
+    if($conn->responsePromise) {
+      $conn->responsePromise->cancel();
+      $conn->responsePromise = null;
+    }
+
+    if($reqBody = $conn->reqBody) {
+      $conn->reqBody = null;
+      $reqBody->close();
+    }
+    if($resBody = $conn->resBody) {
+      $conn->resBody = null;
+      $resBody->close();
+    }
+
+    if(!$response) {
+      return;
+    }
+    if(!$request) {
+      $close = true;
+    }
+
     if(!$this->_filter(
       $conn, false, 'onResEnd',
-      $conn->conn, $conn->request, $conn->response,
-      $close||!$conn->buffer, $conn->filterResponse
-    )) {
+      $conn->conn, $request, $response,
+      $close, $conn->filterResponse
+    ) && !$closed) {
       return;
     }
 
-    if(!$conn->buffer) {
-      $this->_onClose($conn);
-      return;
-    }
-    if($close) {
+    if($close && !$closed) {
       $conn->conn->end();
       return;
     }
 
-    if($conn->handler) {
-      $handler = $conn->handler;
+    if($closed) {
+      return;
+    }
+
+    if($request && ($handler = $conn->handler)) {
       $conn->handler = null;
 
-      $handler->onEnd($conn->request, $conn->response);
+      $handler->onEnd($request, $response);
 
       if(!$conn->conn || $conn->conn->closing) {
         return;
       }
     }
 
-    if($conn->reqBody) {
-      $conn->reqBodyEnding = false;
-      $conn->reqBody->close();
-    }
-
     $conn->buffer->removeAllListeners('data');
     $conn->buffer->reset();
 
-    $conn->request = null;
-    $conn->response = null;
     $conn->filterResponse = false;
 
     $conn->timer->cancel();
@@ -651,35 +662,21 @@ class Server {
   }
 
   private function _onClose($conn) {
-    if($conn->buffer) {
-      $conn->buffer->removeAllListeners();
-      $conn->buffer->reset();
-      $conn->buffer = null;
-    }
+    $conn->buffer->removeAllListeners();
+    $conn->buffer->reset();
+    $conn->buffer = null;
 
-    if($conn->reqBody) {
-      $conn->reqBodyEnding = false;
-      $conn->reqBody->close();
-    }
-    if($conn->resBody) {
-      $conn->resBody->close();
-      return;
-    }
+    $request = $conn->request;
+    $response = $conn->response;
 
-    if($conn->responsePromise) {
-      $conn->responsePromise->cancel();
-      $conn->responsePromise = null;
-    }
+    $this->_resEnd($conn, true, true);
 
-    if($conn->handler) {
-      $conn->handler->onEnd($conn->request, $conn->response);
+    if($request && ($handler = $conn->handler)) {
       $conn->handler = null;
+      $handler->onEnd($request, $response);
     }
 
-    $this->_filter($conn, false, 'onConnClose', $conn->conn, $conn->request, $conn->response);
-
-    $conn->request = null;
-    $conn->response = null;
+    $this->_filter($conn, false, 'onConnClose', $conn->conn, $request, $response);
 
     $conn->timer->cancel();
     $conn->timer = null;

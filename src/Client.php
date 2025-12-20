@@ -304,7 +304,7 @@ final class Client {
       $isStrBody = is_string($reqBody);
     }
 
-    if($reqBody && !$isStrBody && !($reqBody instanceOf Stream\ReadableStreamInterface)) {
+    if(!is_null($reqBody) && !$isStrBody && !($reqBody instanceOf Stream\ReadableStreamInterface)) {
       ($conn->emitter)('error', ['Request body must be a string or readable stream']);
       $conn->close();
       return;
@@ -319,16 +319,21 @@ final class Client {
     $conn->write($request->render(false));
     ($conn->emitter)('request-headers', [$request]);
 
-    if(!$this->_conn) {
+    if(!$this->_conn || !$reqBody) {
       return;
     }
 
     $ctLen = (int)$request->getHeader('Content-Length');
 
-    if(!$reqBody || $isStrBody) {
-      if($reqBody && $ctLen) {
-        $conn->write(substr($reqBody,0,$ctLen));
+    if($isStrBody) {
+      $reqBody = substr($reqBody, 0, $ctLen);
+
+      if(strlen($reqBody) < $ctLen) {
+        $conn->close();
+        return;
       }
+
+      $conn->write($reqBody);
       return;
     }
 
@@ -340,22 +345,21 @@ final class Client {
     };
 
     if($ctLen) {
-      $datacb = function($data) use($datacb, &$ctLen) {
+      $datacb = function($data) use($datacb, $reqBody, &$ctLen) {
         $data = substr($data, 0, $ctLen);
         $ctLen -= strlen($data);
-
         $datacb($data);
-        if($ctLen) return;
-
-        $this->_conn->reqBody->close();
+        if(!$ctLen) $reqBody->close();
       };
-      $reqBody->on('close', function() {
-        $this->_conn->reqBody = null;
+      $reqBody->on('close', function() use(&$ctLen) {
+        if(!$this->_conn->reqBody) return;
+        if($ctLen) $this->_conn->close();
+        else $this->_conn->reqBody = null;
       });
     } else {
       $reqBody->on('close', function() {
+        if(!$this->_conn->reqBody) return;
         $this->_conn->reqBody = null;
-        if(!$this->_conn->buffer) return;
         $this->_conn->end();
       });
     }
@@ -415,8 +419,8 @@ final class Client {
         });
 
         $reqBody->on('close', function() {
+          if(!$this->_conn->reqBody) return;
           $this->_conn->reqBody = null;
-          if(!$this->_conn->buffer) return;
           $this->_conn->end();
         });
 
@@ -447,6 +451,7 @@ final class Client {
         if($end) $resBody->end();
       };
       $resBody->on('close', function() use($response) {
+        if(!$this->_conn->resBody) return;
         $this->_conn->resBody = null;
         if($this->_conn->upgrade) return;
         $this->_onResponse($response);
@@ -505,10 +510,6 @@ final class Client {
     if(!$this->_conn) {
       return;
     }
-    if(!$conn->buffer) {
-      $this->_onClose();
-      return;
-    }
     if($conn->close) {
       $conn->close();
       return;
@@ -521,8 +522,9 @@ final class Client {
       return;
     }
 
-    if($conn->reqBody) {
-      $conn->reqBody->close();
+    if($reqBody = $conn->reqBody) {
+      $conn->reqBody = null;
+      $reqBody->close();
     }
 
     $conn->buffer->removeAllListeners('data');
@@ -544,21 +546,20 @@ final class Client {
   }
 
   private function _onClose() {
-    $conn = $this->_conn;    
+    $conn = $this->_conn;
 
-    if($conn->buffer) {
-      $conn->buffer->removeAllListeners();
-      $conn->buffer->reset();
-      $conn->buffer = null;
+    if($reqBody = $conn->reqBody) {
+      $conn->reqBody = null;
+      $reqBody->close();
+    }
+    if($resBody = $conn->resBody) {
+      $conn->resBody = null;
+      $resBody->close();
     }
 
-    if($conn->reqBody) {
-      $conn->reqBody->close();
-    }
-    if($conn->resBody) {
-      $conn->resBody->end();
-      return;
-    }
+    $conn->buffer->removeAllListeners();
+    $conn->buffer->reset();
+    $conn->buffer = null;
 
     if($conn->request) {
       ($conn->emitter)('close', [$conn->request]);
