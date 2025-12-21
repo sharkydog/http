@@ -5,7 +5,7 @@ use React\Socket\SecureServer;
 use React\Stream;
 
 class Server {
-  private $_serverStr = 'ShD HTTP Server v1.3.4';
+  private $_serverStr = 'ShD HTTP Server v1.3.5';
   private $_maxHandlerRedirects = 5;
   private $_keepAliveTimeout = 10;
   private $_routes = [];
@@ -609,6 +609,14 @@ class Server {
     $request = $conn->request;
     $response = $conn->response;
 
+    if(!$request) {
+      $close = true;
+    }
+    if($close && !$closed) {
+      $conn->conn->end();
+      return;
+    }
+
     $conn->request = null;
     $conn->response = null;
 
@@ -629,24 +637,12 @@ class Server {
     if(!$response) {
       return;
     }
-    if(!$request) {
-      $close = true;
-    }
 
     if(!$this->_filter(
       $conn, false, 'onResEnd',
       $conn->conn, $request, $response,
       $close, $conn->filterResponse
-    ) && !$closed) {
-      return;
-    }
-
-    if($close && !$closed) {
-      $conn->conn->end();
-      return;
-    }
-
-    if($closed) {
+    ) || $closed) {
       return;
     }
 
