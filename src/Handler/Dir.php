@@ -21,7 +21,7 @@ class Dir extends HTTP\Handler {
     $path = $request->getPath();
     $route = rtrim($request->routePath??'', '/');
 
-    if(strpos($path, $route) !== 0) {
+    if($route && strpos($path, $route) !== 0) {
       return 404;
     }
 
