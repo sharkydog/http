@@ -5,7 +5,7 @@ use React\Socket\SecureServer;
 use React\Stream;
 
 class Server {
-  private $_serverStr = 'ShD HTTP Server v1.3.5';
+  private $_serverStr = 'ShD HTTP Server v1.3';
   private $_maxHandlerRedirects = 5;
   private $_keepAliveTimeout = 10;
   private $_routes = [];
